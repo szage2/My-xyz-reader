@@ -27,6 +27,9 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
     </style>
 
+    <style name="PictureStyle">
+        <item name="android:scaleType">centerCrop</item>
+    </style>
 
 
 </resources>
