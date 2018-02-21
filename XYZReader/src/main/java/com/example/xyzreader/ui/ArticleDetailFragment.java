@@ -1,5 +1,6 @@
 package com.example.xyzreader.ui;
 
+import android.annotation.TargetApi;
 import android.app.Fragment;
 import android.app.LoaderManager;
 import android.content.Intent;
@@ -16,6 +17,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.ShareCompat;
 import android.support.v7.graphics.Palette;
@@ -26,6 +28,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -44,6 +47,7 @@ public class ArticleDetailFragment extends Fragment implements
     private static final String TAG = "ArticleDetailFragment";
 
     public static final String ARG_ITEM_ID = "item_id";
+    public static final String ARG_ITEM_POSITION = "transition_item_position";
     private static final float PARALLAX_FACTOR = 1.25f;
 
     private Cursor mCursor;
@@ -61,6 +65,8 @@ public class ArticleDetailFragment extends Fragment implements
     private boolean mIsCard = false;
     private int mStatusBarFullOpacityBottom;
 
+    private int mPosition;
+
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss");
     // Use default locale format
     private SimpleDateFormat outputFormat = new SimpleDateFormat();
@@ -74,9 +80,11 @@ public class ArticleDetailFragment extends Fragment implements
     public ArticleDetailFragment() {
     }
 
-    public static ArticleDetailFragment newInstance(long itemId) {
+    // Set position as an argument
+    public static ArticleDetailFragment newInstance(long itemId, int position) {
         Bundle arguments = new Bundle();
         arguments.putLong(ARG_ITEM_ID, itemId);
+        arguments.putInt(ARG_ITEM_POSITION, position);
         ArticleDetailFragment fragment = new ArticleDetailFragment();
         fragment.setArguments(arguments);
         return fragment;
@@ -88,6 +96,11 @@ public class ArticleDetailFragment extends Fragment implements
 
         if (getArguments().containsKey(ARG_ITEM_ID)) {
             mItemId = getArguments().getLong(ARG_ITEM_ID);
+        }
+
+        // Get the position of the selected item
+        if (getArguments().containsKey(ARG_ITEM_POSITION)) {
+            mPosition = getArguments().getInt(ARG_ITEM_POSITION);
         }
 
         mIsCard = getResources().getBoolean(R.bool.detail_is_card);
@@ -111,10 +124,13 @@ public class ArticleDetailFragment extends Fragment implements
         getLoaderManager().initLoader(0, null, this);
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState) {
         mRootView = inflater.inflate(R.layout.fragment_article_detail, container, false);
+        //Set the transition name on the image view with item's position
+        mRootView.findViewById(R.id.photo).setTransitionName(getString(R.string.transition_image) + mPosition);
         mDrawInsetsFrameLayout = (DrawInsetsFrameLayout)
                 mRootView.findViewById(R.id.draw_insets_frame_layout);
         mDrawInsetsFrameLayout.setOnInsetsCallback(new DrawInsetsFrameLayout.OnInsetsCallback() {
@@ -195,6 +211,7 @@ public class ArticleDetailFragment extends Fragment implements
         }
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     private void bindViews() {
         if (mRootView == null) {
             return;
@@ -212,6 +229,11 @@ public class ArticleDetailFragment extends Fragment implements
             mRootView.setAlpha(0);
             mRootView.setVisibility(View.VISIBLE);
             mRootView.animate().alpha(1);
+            // Log the item's position
+            Log.i(TAG, "Item position is " + String.valueOf(mPosition));
+            // set the transition name on the root view
+            mRootView.findViewById(R.id.photo).setTransitionName(getString(R.string.transition_image) + mPosition);
+
             titleView.setText(mCursor.getString(ArticleLoader.Query.TITLE));
             Date publishedDate = parsePublishedDate();
             if (!publishedDate.before(START_OF_EPOCH.getTime())) {
@@ -261,6 +283,24 @@ public class ArticleDetailFragment extends Fragment implements
         }
     }
 
+    /**
+     * Schedules the shared element transition to be started immediately
+     * after the shared element has been measured and laid out within the
+     * activity's view hierarchy.
+     */
+    public void scheduleStartPostponedTransition(final View sharedElement) {
+        sharedElement.getViewTreeObserver().addOnPreDrawListener(
+                new ViewTreeObserver.OnPreDrawListener() {
+                    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+                    @Override
+                    public boolean onPreDraw() {
+                        sharedElement.getViewTreeObserver().removeOnPreDrawListener(this);
+                        getActivity().startPostponedEnterTransition();
+                        return true;
+                    }
+                });
+    }
+
     @Override
     public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
         return ArticleLoader.newInstanceForItemId(getActivity(), mItemId);
@@ -268,6 +308,10 @@ public class ArticleDetailFragment extends Fragment implements
 
     @Override
     public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
+
+        // start the element transition
+        scheduleStartPostponedTransition(mPhotoView);
+
         if (!isAdded()) {
             if (cursor != null) {
                 cursor.close();

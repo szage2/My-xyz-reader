@@ -63,4 +63,10 @@ public class MaxWidthLinearLayout extends LinearLayout {
         widthMeasureSpec = MeasureSpec.makeMeasureSpec(newSpecWidth, MeasureSpec.getMode(widthMeasureSpec));
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
+
+    // Fix the exception caused by animation
+    @Override
+    public boolean hasOverlappingRendering() {
+        return false;
+    }
 }

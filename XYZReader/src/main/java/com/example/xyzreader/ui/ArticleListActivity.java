@@ -1,5 +1,7 @@
 package com.example.xyzreader.ui;
 
+import android.annotation.TargetApi;
+import android.app.ActivityOptions;
 import android.app.LoaderManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -7,6 +9,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.Loader;
 import android.database.Cursor;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarActivity;
@@ -16,10 +19,9 @@ import android.support.v7.widget.Toolbar;
 import android.text.Html;
 import android.text.format.DateUtils;
 import android.util.Log;
-import android.util.TypedValue;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.TextView;
 
 import com.example.xyzreader.R;
@@ -52,13 +54,19 @@ public class ArticleListActivity extends ActionBarActivity implements
     // Most time functions can only handle 1902 - 2037
     private GregorianCalendar START_OF_EPOCH = new GregorianCalendar(2,1,1);
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
+        getWindow().requestFeature(Window.FEATURE_CONTENT_TRANSITIONS);
+        getWindow().requestFeature(Window.FEATURE_ACTIVITY_TRANSITIONS);
+        getWindow().setAllowReturnTransitionOverlap(true);
+
+
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_article_list);
 
         mToolbar = (Toolbar) findViewById(R.id.toolbar);
-
 
         final View toolbarContainerView = findViewById(R.id.toolbar_container);
 
@@ -87,6 +95,14 @@ public class ArticleListActivity extends ActionBarActivity implements
     protected void onStop() {
         super.onStop();
         unregisterReceiver(mRefreshingReceiver);
+    }
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    @Override
+    public void onActivityReenter(int resultCode, Intent data) {
+        //postponeEnterTransition();
+
+        super.onActivityReenter(resultCode, data);
     }
 
     private boolean mIsRefreshing = false;
@@ -146,8 +162,27 @@ public class ArticleListActivity extends ActionBarActivity implements
             view.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    startActivity(new Intent(Intent.ACTION_VIEW,
-                            ItemsContract.Items.buildItemUri(getItemId(vh.getAdapterPosition()))));
+                    if (Build.VERSION.SDK_INT >= 21) {
+                        //In case of the build version is at least 21
+                        Log.v(TAG, "transition name " + view.findViewById(R.id.thumbnail).getTransitionName());
+                        Log.v(TAG,"id " + String.valueOf(mCursor.getLong(ArticleLoader.Query._ID)));
+                        // Create a transition
+                        Bundle transitionBundle = ActivityOptions.makeSceneTransitionAnimation(
+                                ArticleListActivity.this, view.findViewById(R.id.thumbnail),
+                                view.findViewById(R.id.thumbnail).getTransitionName()).toBundle();
+                        // Start the Activity with transition and extra data
+                        startActivity(new Intent(Intent.ACTION_VIEW,
+                                ItemsContract.Items.buildItemUri(getItemId(vh.getAdapterPosition())))
+                                .putExtra("transition name", view.findViewById(R.id.thumbnail)
+                                .getTransitionName()), transitionBundle);
+
+                    } else {
+                        // if build version is lower than 21
+                        // Start the activity normally
+                        startActivity(new Intent(Intent.ACTION_VIEW,
+                                ItemsContract.Items.buildItemUri(getItemId(vh.getAdapterPosition()))));
+                    }
+
                 }
             });
             return vh;
@@ -164,9 +199,12 @@ public class ArticleListActivity extends ActionBarActivity implements
             }
         }
 
+        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
         @Override
         public void onBindViewHolder(ViewHolder holder, int position) {
             mCursor.moveToPosition(position);
+            // Set the transition name on the view
+            holder.thumbnailView.setTransitionName(getString(R.string.transition_image) + position);
             holder.titleView.setText(mCursor.getString(ArticleLoader.Query.TITLE));
             Date publishedDate = parsePublishedDate();
             if (!publishedDate.before(START_OF_EPOCH.getTime())) {

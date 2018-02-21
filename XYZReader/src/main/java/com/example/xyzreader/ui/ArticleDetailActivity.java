@@ -1,8 +1,10 @@
 package com.example.xyzreader.ui;
 
+import android.annotation.TargetApi;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.LoaderManager;
+import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
 import android.graphics.drawable.ColorDrawable;
@@ -12,9 +14,11 @@ import android.support.v13.app.ActivityCompat;
 import android.support.v13.app.FragmentStatePagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.ActionBarActivity;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowInsets;
 
 import com.example.xyzreader.R;
@@ -39,9 +43,16 @@ public class ArticleDetailActivity extends ActionBarActivity
     private View mUpButtonContainer;
     private View mUpButton;
 
+    private Integer mItemPosition = 0;
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Postpone the shared element enter transition.
+        postponeEnterTransition();
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             getWindow().getDecorView().setSystemUiVisibility(
                     View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
@@ -50,19 +61,6 @@ public class ArticleDetailActivity extends ActionBarActivity
         setContentView(R.layout.activity_article_detail);
 
         getLoaderManager().initLoader(0, null, this);
-
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE);
-
-       /* //transparent status bar and navigation bar
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);*/
-
-        //Postpone transition here
-        ActivityCompat.postponeEnterTransition(this);
 
         mPagerAdapter = new MyPagerAdapter(getFragmentManager());
         mPager = (ViewPager) findViewById(R.id.pager);
@@ -84,6 +82,8 @@ public class ArticleDetailActivity extends ActionBarActivity
             public void onPageSelected(int position) {
                 if (mCursor != null) {
                     mCursor.moveToPosition(position);
+                    // Assign the selected item's position to variable
+                    mItemPosition = position;
                 }
                 mSelectedItemId = mCursor.getLong(ArticleLoader.Query._ID);
                 updateUpButtonPosition();
@@ -119,6 +119,15 @@ public class ArticleDetailActivity extends ActionBarActivity
                 mSelectedItemId = mStartId;
             }
         }
+    }
+
+    /**
+     * Getter method for fragment
+     *
+     * @return selected item's position
+     */
+    public Integer getItemPosition() {
+        return mItemPosition;
     }
 
     @Override
@@ -183,7 +192,7 @@ public class ArticleDetailActivity extends ActionBarActivity
         @Override
         public Fragment getItem(int position) {
             mCursor.moveToPosition(position);
-            return ArticleDetailFragment.newInstance(mCursor.getLong(ArticleLoader.Query._ID));
+            return ArticleDetailFragment.newInstance(mCursor.getLong(ArticleLoader.Query._ID), position);
         }
 
         @Override
