@@ -10,4 +10,7 @@
     <string name="up">Up</string>
     <string name="transition_image">transition_image</string>
 
+    <string name="snackbar_message">No internet connection available</string>
+    <string name="snackbar_button">RETRY</string>
+
 </resources>

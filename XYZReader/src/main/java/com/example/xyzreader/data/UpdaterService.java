@@ -27,6 +27,8 @@ public class UpdaterService extends IntentService {
             = "com.example.xyzreader.intent.action.STATE_CHANGE";
     public static final String EXTRA_REFRESHING
             = "com.example.xyzreader.intent.extra.REFRESHING";
+    public static final String BROADCAST_ACTION_ERROR_NETWORK
+            = "com.example.xyzreader.intent.action.ERROR_NETWORK";
 
     public UpdaterService() {
         super(TAG);
@@ -45,6 +47,9 @@ public class UpdaterService extends IntentService {
 
         sendStickyBroadcast(
                 new Intent(BROADCAST_ACTION_STATE_CHANGE).putExtra(EXTRA_REFRESHING, true));
+
+        sendStickyBroadcast(
+                new Intent(BROADCAST_ACTION_ERROR_NETWORK).putExtra(EXTRA_REFRESHING, true));
 
         // Don't even inspect the intent, we only do one thing, and that's fetch content.
         ArrayList<ContentProviderOperation> cpo = new ArrayList<ContentProviderOperation>();

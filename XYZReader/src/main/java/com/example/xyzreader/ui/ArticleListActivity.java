@@ -1,5 +1,6 @@
 package com.example.xyzreader.ui;
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.ActivityOptions;
 import android.app.LoaderManager;
@@ -11,6 +12,10 @@ import android.content.Loader;
 import android.database.Cursor;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.ColorRes;
+import android.support.annotation.RequiresApi;
+import android.support.design.widget.Snackbar;
+import android.support.v4.view.ViewCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.widget.RecyclerView;
@@ -89,6 +94,8 @@ public class ArticleListActivity extends ActionBarActivity implements
         super.onStart();
         registerReceiver(mRefreshingReceiver,
                 new IntentFilter(UpdaterService.BROADCAST_ACTION_STATE_CHANGE));
+        registerReceiver(mRefreshingReceiver,
+                new IntentFilter(UpdaterService.BROADCAST_ACTION_ERROR_NETWORK));
     }
 
     @Override
@@ -108,11 +115,14 @@ public class ArticleListActivity extends ActionBarActivity implements
     private boolean mIsRefreshing = false;
 
     private BroadcastReceiver mRefreshingReceiver = new BroadcastReceiver() {
+        @TargetApi(Build.VERSION_CODES.LOLLIPOP)
         @Override
         public void onReceive(Context context, Intent intent) {
             if (UpdaterService.BROADCAST_ACTION_STATE_CHANGE.equals(intent.getAction())) {
                 mIsRefreshing = intent.getBooleanExtra(UpdaterService.EXTRA_REFRESHING, false);
                 updateRefreshingUI();
+            } else if (UpdaterService.BROADCAST_ACTION_ERROR_NETWORK.equals(intent.getAction())) {
+                showSnackBar();
             }
         }
     };
@@ -135,6 +145,32 @@ public class ArticleListActivity extends ActionBarActivity implements
         StaggeredGridLayoutManager sglm =
                 new StaggeredGridLayoutManager(columnCount, StaggeredGridLayoutManager.VERTICAL);
         mRecyclerView.setLayoutManager(sglm);
+    }
+
+    /**
+     * Show a snack bar when no internet connection available
+     */
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    @SuppressLint("ResourceAsColor")
+    public void showSnackBar() {
+
+        Snackbar snackbar = Snackbar.make(findViewById(R.id.coordinator_layout), R.string.snackbar_message,
+                Snackbar.LENGTH_LONG);
+
+        // Set the elevation
+        View view = snackbar.getView();
+        view.setElevation(6);
+
+        // Set "RETRY" action on the snackbar
+        snackbar.setAction(R.string.snackbar_button, new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Start the updater service to refresh once the action gets clicked
+                refresh();
+            }
+        });
+
+        snackbar.show();
     }
 
     @Override
